@@ -1,0 +1,114 @@
+// Include required libraries
+  #include <SoftwareSerial.h>
+  #include <DHT.h>
+  #include <LiquidCrystal.h>
+  #include <TinyGPS++.h>
+  #include <BlynkSimpleEsp8266.h>
+  
+  // Pin Definitions
+  #define DHTPIN 2        // DHT22 data pin
+  #define DHTTYPE DHT22   // DHT22 sensor
+  #define TRIG_PIN 3      // Ultrasonic sensor trigger pin
+  #define ECHO_PIN 4      // Ultrasonic sensor echo pin
+  #define MQ135_PIN A0    // MQ-135 air quality sensor
+  #define MQ7_PIN A1      // MQ-7 CO sensor
+  #define MQ4_PIN A2      // MQ-4 Methane sensor
+  #define WATER_SENSOR A3 // Water level sensor
+  #define GPS_TX 7        // GPS TX pin (connect to Arduino RX)
+  #define GPS_RX 6        // GPS RX pin (connect to Arduino TX)
+  #define ESP_TX 9        // ESP8266 TX
+  #define ESP_RX 10       // ESP8266 RX
+  
+  // Initialize objects
+  DHT dht(DHTPIN, DHTTYPE);
+  LiquidCrystal lcd(8, 9, 10, 11, 12, 13); // For 12x2 LCD without I2C
+  SoftwareSerial gpsSerial(GPS_TX, GPS_RX);
+  TinyGPSPlus gps;
+  SoftwareSerial espSerial(ESP_RX, ESP_TX); // ESP8266 communication
+  
+  // Blynk Authentication
+  char auth[] = "A6os2lr8_9gY5-0a42cDHTOrNFSzoIsP"; // Get from Blynk app
+  char ssid[] = "iQOO Z7s 5G"; 
+  char pass[] = "naveen123";
+  
+  void setup() {
+      Serial.begin(9600);      // Serial monitor
+      espSerial.begin(115200); // ESP8266
+      gpsSerial.begin(9600);   // GPS module
+      dht.begin();
+      lcd.begin(12, 2);        // Initialize LCD
+      pinMode(TRIG_PIN, OUTPUT);
+      pinMode(ECHO_PIN, INPUT);
+      pinMode(WATER_SENSOR, INPUT);
+  
+      Blynk.begin(auth, ssid, pass, "blynk.cloud", 80); // Connect ESP8266 to Blynk
+  }
+  
+  void loop() {
+      Blynk.run();
+      readSensors();
+      displayLCD();
+      sendToBlynk();
+  }
+  
+  void readSensors() {
+      float humidity = dht.readHumidity();
+      float temperature = dht.readTemperature();
+      int mq135_value = analogRead(MQ135_PIN);
+      int mq7_value = analogRead(MQ7_PIN);
+      int mq4_value = analogRead(MQ4_PIN);
+      int water_level = analogRead(WATER_SENSOR);
+      float distance = measureDistance();
+  
+      Serial.print("Humidity: "); Serial.print(humidity);
+      Serial.print(" Temp: "); Serial.println(temperature);
+      Serial.print("Air Quality: "); Serial.println(mq135_value);
+      Serial.print("CO Level: "); Serial.println(mq7_value);
+      Serial.print("Methane: "); Serial.println(mq4_value);
+      Serial.print("Water Level: "); Serial.println(water_level);
+      Serial.print("Drain Distance: "); Serial.println(distance);
+  
+      // GPS Data
+      while (gpsSerial.available()) {
+          gps.encode(gpsSerial.read());
+      }
+      if (gps.location.isValid()) {
+          Serial.print("Lat: "); Serial.print(gps.location.lat(), 6);
+          Serial.print(" Lon: "); Serial.println(gps.location.lng(), 6);
+      }
+  }
+  
+  float measureDistance() {
+      digitalWrite(TRIG_PIN, LOW);
+      delayMicroseconds(2);
+      digitalWrite(TRIG_PIN, HIGH);
+      delayMicroseconds(10);
+      digitalWrite(TRIG_PIN, LOW);
+      long duration = pulseIn(ECHO_PIN, HIGH);
+      return duration * 0.034 / 2; // Convert to cm
+  }
+  
+  void displayLCD() {
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Drain Mon:");
+      lcd.setCursor(0, 1);
+      lcd.print("Water Lvl: ");
+      lcd.print(analogRead(WATER_SENSOR));
+      delay(2000);
+  }
+  
+  void sendToBlynk() {
+      Blynk.virtualWrite(V0, dht.readHumidity());
+      Blynk.virtualWrite(V1, dht.readTemperature());
+      Blynk.virtualWrite(V2, analogRead(MQ135_PIN));
+      Blynk.virtualWrite(V3, analogRead(MQ7_PIN));
+      Blynk.virtualWrite(V4, analogRead(MQ4_PIN));
+      Blynk.virtualWrite(V5, analogRead(WATER_SENSOR));
+      Blynk.virtualWrite(V6, measureDistance());
+  
+      if (gps.location.isValid()) {
+          Blynk.virtualWrite(V7, gps.location.lat());
+          Blynk.virtualWrite(V8, gps.location.lng());
+      }
+  }
