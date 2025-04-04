@@ -1,0 +1,91 @@
+#include <ESP8266WiFi.h>
+#include <BlynkSimpleEsp8266.h>
+
+#define BLYNK_PRINT Serial
+char auth[] = "A6os2lr8_9gY5-0a42cDHTOrNFSzoIsP";
+char ssid[] = "iQOO Z7s 5G";
+char pass[] = "naveen123";
+
+void setup() {
+    Serial.begin(115200);
+    Blynk.begin(auth, ssid, pass);
+}
+
+void loop() {
+    if (Serial.available()) {
+        String data = Serial.readStringUntil('\n');
+        int waterLevel, methane, co, airQuality;
+        float temp, hum, distance;
+        
+        sscanf(data.c_str(), "%d,%d,%d,%d,%f,%f,%f",
+               &waterLevel, &methane, &co, &airQuality, &temp, &hum, &distance);
+
+        Blynk.virtualWrite(V0, waterLevel);
+        Blynk.virtualWrite(V1, methane);
+        Blynk.virtualWrite(V2, co);
+        Blynk.virtualWrite(V3, airQuality);
+        Blynk.virtualWrite(V4, temp);
+        Blynk.virtualWrite(V5, hum);
+        Blynk.virtualWrite(V6, distance);
+
+        // *** Expanded Condition-Based Suggestions ***
+        String suggestion = "All Conditions Normal.";
+
+        if (waterLevel > 800) {
+            suggestion = "🚨 High Water Level! Immediate Drainage Required.";
+        } else if (waterLevel > 600) {
+            suggestion = "⚠️ Water Level Rising. Monitor Closely.";
+        } else if (waterLevel < 300) {
+            suggestion = "✅ Water Level Normal.";
+        }
+
+        if (distance < 10) {
+            suggestion = "⚠️ Blockage Detected! Check for Obstructions.";
+        }
+
+        if (methane > 900) {
+            suggestion = "🚨 Methane Danger! Evacuate & Ventilate Immediately!";
+        } else if (methane > 700) {
+            suggestion = "⚠️ High Methane! Ensure Proper Ventilation.";
+        } else if (methane > 500) {
+            suggestion = "✅ Moderate Methane Levels. Monitor Air Quality.";
+        }
+
+        if (co > 800) {
+            suggestion = "🚨 Carbon Monoxide Critical! Wear Protective Gear!";
+        } else if (co > 600) {
+            suggestion = "⚠️ High CO! Improve Air Circulation.";
+        } else if (co > 400) {
+            suggestion = "✅ CO Levels Normal.";
+        }
+
+        if (airQuality > 1000) {
+            suggestion = "🚨 Extremely Poor Air Quality! Take Immediate Action!";
+        } else if (airQuality > 800) {
+            suggestion = "⚠️ Poor Air Quality. Use Protective Measures.";
+        } else if (airQuality > 500) {
+            suggestion = "✅ Acceptable Air Quality.";
+        }
+
+        if (temp > 40) {
+            suggestion = "⚠️ High Temperature! Check for Fire Hazards.";
+        } else if (temp > 30) {
+            suggestion = "✅ Warm Temperature. Normal for Operation.";
+        } else if (temp < 10) {
+            suggestion = "⚠️ Low Temperature! Possible Condensation Issues.";
+        }
+
+        if (hum > 90) {
+            suggestion = "⚠️ Very High Humidity! Risk of Mold & Corrosion.";
+        } else if (hum > 70) {
+            suggestion = "✅ Normal Humidity Levels.";
+        } else if (hum < 30) {
+            suggestion = "⚠️ Very Low Humidity! Possible Sensor Malfunction.";
+
+        }
+
+        Blynk.virtualWrite(V9, suggestion);
+    }
+
+    Blynk.run();
+}
