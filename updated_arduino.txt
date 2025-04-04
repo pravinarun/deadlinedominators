@@ -1,0 +1,74 @@
+#include <Wire.h>
+#include <LiquidCrystal.h>
+#include <DHT.h>
+
+#define MQ4_PIN A0
+#define MQ7_PIN A1
+#define MQ135_PIN A2
+#define WATER_SENSOR A3
+#define TRIG_PIN 3
+#define ECHO_PIN 2
+#define DHTPIN 4
+#define BUZZER 5
+
+// LCD Pins (Parallel Mode)
+LiquidCrystal lcd(7, 8, 9, 10, 11, 12);
+
+#define DHTTYPE DHT22
+DHT dht(DHTPIN, DHTTYPE);
+
+void setup() {
+    Serial.begin(115200);
+    pinMode(MQ4_PIN, INPUT);
+    pinMode(MQ7_PIN, INPUT);
+    pinMode(MQ135_PIN, INPUT);
+    pinMode(WATER_SENSOR, INPUT);
+    pinMode(TRIG_PIN, OUTPUT);
+    pinMode(ECHO_PIN, INPUT);
+    pinMode(BUZZER, OUTPUT);
+    lcd.begin(16, 2);
+    dht.begin();
+}
+
+float measureDistance() {
+    digitalWrite(TRIG_PIN, LOW);
+    delayMicroseconds(2);
+    digitalWrite(TRIG_PIN, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(TRIG_PIN, LOW);
+    return pulseIn(ECHO_PIN, HIGH) * 0.034 / 2;
+}
+
+void loop() {
+    int methane = analogRead(MQ4_PIN);
+    int co = analogRead(MQ7_PIN);
+    int airQuality = analogRead(MQ135_PIN);
+    int waterLevel = analogRead(WATER_SENSOR);
+    float distance = measureDistance();
+    float temp = dht.readTemperature();
+    float hum = dht.readHumidity();
+
+    lcd.setCursor(0, 0);
+    lcd.print("W:"); lcd.print(waterLevel);
+    lcd.print(" M:"); lcd.print(methane);
+    lcd.setCursor(0, 1);
+    lcd.print("CO:"); lcd.print(co);
+    lcd.print(" AQ:"); lcd.print(airQuality);
+
+    Serial.print(waterLevel); Serial.print(",");
+    Serial.print(methane); Serial.print(",");
+    Serial.print(co); Serial.print(",");
+    Serial.print(airQuality); Serial.print(",");
+    Serial.print(temp); Serial.print(",");
+    Serial.print(hum); Serial.print(",");
+    Serial.println(distance);
+
+    if (methane > 700 || co > 600 || airQuality > 800 || waterLevel > 800) {
+        digitalWrite(BUZZER, HIGH);
+    } 
+    else {
+        digitalWrite(BUZZER, LOW);
+    }
+
+    delay(2000);
+}
