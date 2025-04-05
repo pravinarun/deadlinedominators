@@ -1,0 +1,63 @@
+#define BLYNK_TEMPLATE_ID ""
+#define BLYNK_TEMPLATE_NAME ""
+#define BLYNK_AUTH_TOKEN ""
+
+#include <ESP8266WiFi.h>
+#include <BlynkSimpleEsp8266.h>
+
+char ssid[] = "";     // WiFi Name
+char pass[] = ""; // WiFi Password
+
+float mq4_value, mq7_value, mq135_value, temp, humidity, distance, water_level;
+String suggestion;
+
+void setup() {
+    Serial.begin(115200);
+    Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
+}
+
+void readFromArduino() {
+    if (Serial.available()) {
+        mq4_value = Serial.parseFloat();
+        mq7_value = Serial.parseFloat();
+        mq135_value = Serial.parseFloat();
+        temp = Serial.parseFloat();
+        humidity = Serial.parseFloat();
+        distance = Serial.parseFloat();
+        water_level = Serial.parseFloat();
+        
+        Serial.read(); // Remove newline character
+    }
+}
+
+
+void sendToBlynk() {
+    Blynk.virtualWrite(V1, mq4_value);     // Methane
+    Blynk.virtualWrite(V2, mq7_value);     // CO
+    Blynk.virtualWrite(V3, mq135_value);   // Air Quality
+    Blynk.virtualWrite(V4, temp);          // Temperature
+    Blynk.virtualWrite(V5, humidity);      // Humidity
+    Blynk.virtualWrite(V6, distance);      // Drainage Blockage
+    Blynk.virtualWrite(V7, water_level);   // Water Level
+}
+
+void generateSuggestions() {
+    suggestion = "Safe";
+
+    if (mq4_value > 300) suggestion = "High Methane! Ventilate area!";
+    if (mq7_value > 50) suggestion = "High CO! Avoid inhaling!";
+    if (mq135_value > 150) suggestion = "Poor Air Quality! Caution!";
+    if (temp > 40) suggestion = "High Temp! Check drainage!";
+    if (humidity > 80) suggestion = "High Humidity! Possible Leak!";
+    if (distance < 10) suggestion = "Drain Blocked! Immediate Action!";
+    if (water_level > 75) suggestion = "Water Level High! Risk of Overflow!";
+
+    Blynk.virtualWrite(V8, suggestion);
+}
+
+void loop() {
+    Blynk.run();
+    readFromArduino();
+    sendToBlynk();
+    generateSuggestions();
+}
